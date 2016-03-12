@@ -109,7 +109,7 @@ namespace GLib.Typelib
 		public uint offset;
 
 		public bool IsLocal  () {
-			return (raw_local_reserved & 0x01) == 1 ? true : false ;
+			return Parser.GetBoolFromField (raw_local_reserved, 16, 0);
 		}
 	}
 
@@ -122,10 +122,10 @@ namespace GLib.Typelib
 		uint reserved;
 
 		public bool IsPointer () {
-			return false;
+			return Parser.GetBoolFromField(reserved, 32, 24);
 		}
 		public TypeTag GetTag () {
-			return TypeTag.VOID;
+			return (TypeTag) Parser.GetValueFromField(reserved, 32, 27, 5);;
 		}
 	}
 
@@ -137,19 +137,9 @@ namespace GLib.Typelib
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	struct ArgBlob {
-		uint        name;
+		uint          name;
 
-		/*guint          in                           : 1;
-		guint          out                          : 1;
-		guint          caller_allocates             : 1;
-		guint          nullable                     : 1;
-		guint          optional                     : 1;
-		guint          transfer_ownership           : 1;
-		guint          transfer_container_ownership : 1;
-		guint          return_value                 : 1;
-		guint          scope                        : 3;
-		guint          skip                         : 1; */
-		uint          reserved; /* 20 */
+		uint          reserved;
 		byte          closure;
 		byte          destroy;
 
@@ -158,34 +148,34 @@ namespace GLib.Typelib
 		SimpleTypeBlob arg_type;
 
 		public bool IsIn () {
-			return false;
+			return Parser.GetBoolFromField(reserved, 32, 0);
 		}
 		public bool IsOut () {
-			return false;
+			return Parser.GetBoolFromField(reserved, 32, 1);
 		}
 		public bool CallerAllocates () {
-			return false;
+			return Parser.GetBoolFromField(reserved, 32, 2);
 		}
 		public bool Nullable () {
-			return false;
+			return Parser.GetBoolFromField(reserved, 32, 3);
 		}
 		public bool Optional () {
-			return false;
+			return Parser.GetBoolFromField(reserved, 32, 4);
 		}
 		public bool TransferOwnership () {
-			return false;
+			return Parser.GetBoolFromField(reserved, 32, 5);
 		}
 		public bool TransferContainerOwnership () {
-			return false;
+			return Parser.GetBoolFromField(reserved, 32, 6);
 		}
 		public bool IsReturnValue () {
-			return false;
+			return Parser.GetBoolFromField(reserved, 32, 7);
 		}
 		public ScopeType GetScope () {
-			return ScopeType.INVALID;
+			return (ScopeType) Parser.GetValueFromField(reserved, 32, 8, 3);
 		}
 		public bool Skip () {
-			return false;
+			return Parser.GetBoolFromField(reserved, 32, 11);
 		}
 	}
 
@@ -193,33 +183,26 @@ namespace GLib.Typelib
 	struct Signatureblob {
 		SimpleTypeBlob return_type;
 
-		/*guint16        may_return_null              : 1;
-		guint16        caller_owns_return_value     : 1;
-		guint16        caller_owns_return_container : 1;
-		guint16        skip_return                  : 1;
-		guint16        instance_transfer_ownership  : 1;
-		guint16        throws                       : 1; */
-		ushort        reserved; /* :10 */
+		ushort        reserved;
 		ushort        n_arguments;
-		/* ArgBlob[n_arguments] */
 
 		public bool MayReturnNull () {
-			return false;
+			return Parser.GetBoolFromField((uint)reserved, 16, 0);
 		}
 		public bool CallerOwnsReturnValue () {
-			return false;
+			return Parser.GetBoolFromField((uint)reserved, 16, 1);
 		}
 		public bool CallerOwnsReturnContainer () {
-			return false;
+			return Parser.GetBoolFromField((uint)reserved, 16, 2);
 		}
 		public bool SkipReturn () {
-			return false;
+			return Parser.GetBoolFromField((uint)reserved, 16, 3);
 		}
 		public bool InstanceTransferOwnership () {
-			return false;
+			return Parser.GetBoolFromField((uint)reserved, 16, 4);
 		}
 		public bool Throws () {
-			return false;
+			return Parser.GetBoolFromField((uint)reserved, 16, 5);
 		}
 		public ArgBlob[] GetArguments (BinaryReader reader, long offset) {
 			return new ArgBlob[0];
@@ -236,30 +219,29 @@ namespace GLib.Typelib
 		ushort reserved;
 		ushort reserved2;
 
-
 		public bool IsDeprecated () {
-			return false;
+			return Parser.GetBoolFromField((uint)flags, 16, 0);
 		}
 		public bool IsSetter () {
-			return false;
+			return Parser.GetBoolFromField((uint)flags, 16, 1);
 		}
 		public bool IsGetter () {
-			return false;
+			return Parser.GetBoolFromField((uint)flags, 16, 2);
 		}
 		public bool IsConstructor () {
-			return false;
+			return Parser.GetBoolFromField((uint)flags, 16, 3);
 		}
 		public bool WrapsVFunc () {
-			return false;
+			return Parser.GetBoolFromField((uint)flags, 16, 4);
 		}
 		public bool Throws () {
-			return false;
+			return Parser.GetBoolFromField((uint)flags, 16, 5);
 		}
 		public bool GetIndex () {
-			return false;
+			return Parser.GetBoolFromField((uint)flags, 16, 6);
 		}
 		public bool IsStatic () {
-			return false;
+			return Parser.GetBoolFromField((uint)flags, 16, 7);
 		}
 	}
 		
@@ -317,6 +299,28 @@ namespace GLib.Typelib
 			}
 
 			return data;
+		}
+
+		public static bool GetBoolFromField (uint field, uint fieldLength, uint index) {
+			return GetValueFromField (field, fieldLength, index, 1) == 1;
+		}
+
+		public static uint GetValueFromField (uint field, uint fieldLength, uint index, uint length) {
+			uint value = 0;
+
+			if (BitConverter.IsLittleEndian)
+				index = index + length - 1;
+			else
+				index = fieldLength - 1 - index;
+
+			while (length > 0) {
+				if ((field & ((uint)0x1 << (int)index)) != 0x0)
+					value = value | ((uint)0x1 << (int)(length - 1));
+
+				length--;
+			}
+
+			return value;
 		}
 
 		public static void Main (string[] args) {
