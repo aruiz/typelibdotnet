@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace GLib.Typelib
 {
-	internal enum BlobType : ushort {
+	public enum BlobType : ushort {
 		INVALID,
 		FUNCTION,
 		CALLBACK,
@@ -20,7 +20,7 @@ namespace GLib.Typelib
 		UNION
 	}
 
-	internal enum TypeTag : ushort {
+	public enum TypeTag : ushort {
 		VOID,
 		BOOLEAN,
 		INT8,
@@ -45,7 +45,7 @@ namespace GLib.Typelib
 		UNICHAR
 	}
 
-	internal enum ScopeType : ushort {
+	public enum ScopeType : ushort {
 		INVALID,
 		CALL,
 		ASYNC,
@@ -53,7 +53,7 @@ namespace GLib.Typelib
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
-	struct Header {
+	public struct Header {
 		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
 		public byte[] magic;
 		public byte  major_version;
@@ -113,7 +113,8 @@ namespace GLib.Typelib
 		}
 	}
 
-	struct SimpleTypeBlobFlags {
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public struct SimpleTypeBlobFlags {
 		uint reserved;
 
 		public bool IsPointer () {
@@ -125,22 +126,20 @@ namespace GLib.Typelib
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
-	struct SimpleTypeBlob {
-		SimpleTypeBlobFlags flags;
-		uint offset;
+	public struct SimpleTypeBlob {
+		public SimpleTypeBlobFlags flags;
+		public uint offset;
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	struct ArgBlob {
-		uint          name;
+		public uint           name;
+		uint                  reserved;
+		public byte           closure;
+		public byte           destroy;
+		ushort                padding;
 
-		uint          reserved;
-		byte          closure;
-		byte          destroy;
-
-		ushort        padding;
-
-		SimpleTypeBlob arg_type;
+		public SimpleTypeBlob arg_type;
 
 		public bool IsIn () {
 			return Parser.GetBoolFromField(reserved, 32, 0);
@@ -175,11 +174,13 @@ namespace GLib.Typelib
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
-	struct Signatureblob {
-		SimpleTypeBlob return_type;
+	struct SignatureBlob {
+		public SimpleTypeBlob return_type;
 
 		ushort        reserved;
 		ushort        n_arguments;
+		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 0)]
+		public ArgBlob[]     arguments;
 
 		public bool MayReturnNull () {
 			return Parser.GetBoolFromField((uint)reserved, 16, 0);
@@ -199,20 +200,20 @@ namespace GLib.Typelib
 		public bool Throws () {
 			return Parser.GetBoolFromField((uint)reserved, 16, 5);
 		}
-		public ArgBlob[] GetArguments (BinaryReader reader, long offset) {
-			return new ArgBlob[0];
+		public void GetArguments (BinaryReader reader) {
+			arguments = Parser.MarshalArray<ArgBlob> (reader, n_arguments);
 		}
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	struct FunctionBlob {
-		ushort type;
-		internal ushort flags;
-		uint name;
-		uint symbol;
-		uint signature;
-		ushort reserved;
-		ushort reserved2;
+		public ushort type;
+		private ushort flags;
+		public uint name;
+		public uint symbol;
+		public uint signature;
+		private ushort reserved;
+		private ushort reserved2;
 
 		public bool IsDeprecated () {
 			return Parser.GetBoolFromField((uint)flags, 16, 0);
@@ -264,7 +265,7 @@ namespace GLib.Typelib
 		}
 
 		private static DirEntry[] GetDirectoryEntries (BinaryReader reader, long offset, ushort entries) {
-			var directory = MarshalArray<DirEntry> (reader, offset, (uint) entries);
+			var directory = MarshalArray<DirEntry> (reader, (uint) entries, offset, true);
 
 			foreach (var e in directory) {
 				var pos = reader.BaseStream.Position;
@@ -281,9 +282,10 @@ namespace GLib.Typelib
 			return GetStringFromOffset(reader, offset).Split ('|');
 		}
 
-		public static T[] MarshalArray<T> (BinaryReader reader, long offset, uint length) {
+		public static T[] MarshalArray<T> (BinaryReader reader, uint length, long offset = 0, bool seek = false) {
 			var result = new T[length];
-			reader.BaseStream.Seek (offset, SeekOrigin.Begin);
+			if (seek)
+				reader.BaseStream.Seek (offset, SeekOrigin.Begin);
 			for (uint i = 0; i < length; i++) {
 				result[i] = UnpackStruct<T> (reader);
 			}
