@@ -249,7 +249,7 @@ namespace GLib.Typelib
 	{
 		private Header h;
 		private string[] dependencies;
-		private List<DirEntry> directory;
+		private DirEntry[] directory;
 		public Parser ()
 		{
 			using (var reader = new BinaryReader (File.Open ("./Soup-2.4.typelib", FileMode.Open))) {
@@ -268,13 +268,8 @@ namespace GLib.Typelib
 			return entry;
 		}
 
-		private static List<DirEntry> GetDirectoryEntries (BinaryReader reader, long offset, ushort entries) {
-			var directory = new List<DirEntry> ();
-
-			reader.BaseStream.Seek (offset, SeekOrigin.Begin);
-			for (ushort i = 0; i < entries; i++) {
-				directory.Add(UnpackStruct<DirEntry> (reader));
-			}
+		private static DirEntry[] GetDirectoryEntries (BinaryReader reader, long offset, ushort entries) {
+			var directory = MarshalArray<DirEntry> (reader, offset, (uint) entries);
 
 			foreach (var e in directory) {
 				var pos = reader.BaseStream.Position;
@@ -289,6 +284,15 @@ namespace GLib.Typelib
 		private static string[] GetDependencies (BinaryReader reader, long offset)
 		{
 			return GetStringFromOffset(reader, offset).Split ('|');
+		}
+
+		public static T[] MarshalArray<T> (BinaryReader reader, long offset, uint length) {
+			var result = new T[length];
+			reader.BaseStream.Seek (offset, SeekOrigin.Begin);
+			for (uint i = 0; i < length; i++) {
+				result[i] = UnpackStruct<T> (reader);
+			}
+			return result;
 		}
 
 		public static string GetStringFromOffset (BinaryReader reader, long offset) {
