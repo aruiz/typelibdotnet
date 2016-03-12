@@ -245,9 +245,9 @@ namespace GLib.Typelib
 		private Header h;
 		private string[] dependencies;
 		private DirEntry[] directory;
-		public Parser ()
+		public Parser (string file)
 		{
-			using (var reader = new BinaryReader (File.Open ("./Soup-2.4.typelib", FileMode.Open))) {
+			using (var reader = new BinaryReader (File.Open (file, FileMode.Open))) {
 				h = UnpackStruct<Header> (reader);
 				dependencies = GetDependencies (reader, (long)h.dependencies);
 				directory = GetDirectoryEntries (reader, (long)h.directory, (ushort) h.n_entries);
@@ -323,7 +323,7 @@ namespace GLib.Typelib
 		}
 
 		public static void Main (string[] args) {
-			new Parser();
+			new Parser(args[0]);
 		}
 	}
 }
