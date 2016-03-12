@@ -114,11 +114,6 @@ namespace GLib.Typelib
 	}
 
 	struct SimpleTypeBlobFlags {
-		/* guint reserved   : 8;
-		guint reserved2  :16;
-		guint pointer    : 1;
-		guint reserved3  : 2;
-		guint tag        : 5; */
 		uint reserved;
 
 		public bool IsPointer () {
