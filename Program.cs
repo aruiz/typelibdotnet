@@ -309,6 +309,12 @@ namespace GLib.Typelib
 		public static uint GetValueFromField (uint field, uint fieldLength, uint index, uint length) {
 			uint value = 0;
 
+			/* In here we place index at the most significant bit of each value depending on
+			 * the endianness of the architecture.
+			 *
+			 * We've followed this doc to understand how alignment works: http://mjfrazer.org/mjfrazer/bitfields/
+			 */
+
 			if (BitConverter.IsLittleEndian)
 				index = index + length - 1;
 			else
