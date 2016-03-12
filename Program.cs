@@ -253,16 +253,19 @@ namespace GLib.Typelib
 		public Parser ()
 		{
 			using (var reader = new BinaryReader (File.Open ("./Soup-2.4.typelib", FileMode.Open))) {
-				var data = reader.ReadBytes (Marshal.SizeOf(typeof(Header)));
-				h = (Header) Marshal.PtrToStructure (GCHandle.Alloc (data,
-					                                                 GCHandleType.Pinned).AddrOfPinnedObject (),
-					                                 typeof(Header));
-
+				h = UnpackStruct<Header> (reader);
 				dependencies = GetDependencies (reader, (long)h.dependencies);
 				directory = GetDirectoryEntries (reader, (long)h.directory, (ushort) h.n_entries);
 			}
-			
+		}
 
+		private static T UnpackStruct<T> (BinaryReader reader, long offset = 0, bool seek = false) {
+			if (seek)
+				reader.BaseStream.Seek (offset, SeekOrigin.Begin);
+			var data = reader.ReadBytes (Marshal.SizeOf (typeof(T)));
+			var entry = (T)Marshal.PtrToStructure (GCHandle.Alloc (data, GCHandleType.Pinned).AddrOfPinnedObject (),
+				typeof(T));
+			return entry;
 		}
 
 		private static List<DirEntry> GetDirectoryEntries (BinaryReader reader, long offset, ushort entries) {
@@ -270,10 +273,7 @@ namespace GLib.Typelib
 
 			reader.BaseStream.Seek (offset, SeekOrigin.Begin);
 			for (ushort i = 0; i < entries; i++) {
-				var data = reader.ReadBytes (Marshal.SizeOf (typeof(DirEntry)));
-				var entry = (DirEntry)Marshal.PtrToStructure (GCHandle.Alloc (data, GCHandleType.Pinned).AddrOfPinnedObject (),
-					            typeof(DirEntry));
-				directory.Add(entry);
+				directory.Add(UnpackStruct<DirEntry> (reader));
 			}
 
 			foreach (var e in directory) {
