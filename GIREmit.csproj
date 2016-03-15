@@ -37,8 +37,12 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Enums.cs" />
-    <Compile Include="Structs.cs" />
+    <Compile Include="GIRParser\Enums.cs" />
+    <Compile Include="GIRParser\Structs.cs" />
+    <Compile Include="GIRParser\Parser.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Folder Include="GIRParser\" />
+  </ItemGroup>
 </Project>

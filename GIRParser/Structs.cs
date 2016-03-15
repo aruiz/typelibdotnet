@@ -54,7 +54,7 @@ namespace GLib.Typelib {
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	struct DirEntry {
 		public BlobType type;
-		internal ushort raw_local_reserved;
+		private ushort raw_local_reserved;
 		public uint name;
 		public uint offset;
 
@@ -191,4 +191,9 @@ namespace GLib.Typelib {
 		}
 	}
 
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	struct Section {
+		public SectionType id;
+		public uint offset;
+	}
 }
