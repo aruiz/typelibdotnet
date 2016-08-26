@@ -34,6 +34,68 @@ namespace GLib.Introspection
 		UNRESOLVED
 	}
 
+	public enum ArrayType : uint {
+		C,
+		ARRAY,
+		PTR_ARRAY,
+		BYTE_ARRAY
+	}
+
+	public enum TypeTag : uint {
+		VOID,
+		BOOLEAN,
+		INT8,
+		UINT8,
+		INT16,
+		UINT16,
+		INT32,
+		UINT32,
+		INT64,
+		UINT64,
+		FLOAT,
+		DOUBLE,
+		GTYPE,
+		UTF8,
+		FILENAME,
+		ARRAY,
+		INTERFACE,
+		GLIST,
+		GSLIST,
+		GHASH,
+		ERROR,
+		UNICHAR
+	}
+
+	public struct TypeMaps {
+		
+		public static Dictionary <TypeTag, Type> tagmap = new Dictionary <TypeTag, Type> {
+			{TypeTag.VOID,    typeof(void)},
+			{TypeTag.BOOLEAN, typeof(bool)},
+			{TypeTag.INT8,    typeof(sbyte)},
+			{TypeTag.UINT8,   typeof(byte)},
+			{TypeTag.INT16,   typeof(Int16)},
+			{TypeTag.UINT16,  typeof(UInt16)},
+			{TypeTag.INT32, typeof (Int32)},
+			{TypeTag.UINT32,typeof (UInt32)},
+			{TypeTag.INT64, typeof (Int64)},
+			{TypeTag.UINT64,typeof (UInt64)},
+			{TypeTag.FLOAT, typeof (float)},
+			{TypeTag.DOUBLE,typeof (double)},
+			{TypeTag.GTYPE, typeof (GType)},
+			{TypeTag.UTF8,  typeof (string)},
+			{TypeTag.FILENAME, typeof (string)},
+			{TypeTag.ARRAY,    typeof (Array)},
+			//{TypeTag.INTERFACE,typeof ()},
+			//{TypeTag.GLIST,    typeof ()},
+			//{TypeTag.GSLIST,   typeof ()},
+			//{TypeTag.GHASH,    typeof ()},
+			//{TypeTag.ERROR,    typeof ()},
+			//{TypeTag.UNICHAR,  typeof ()},
+		};
+
+		//Marshaller map
+	}
+
 	public enum Direction : uint {
 		IN,
 		OUT,
@@ -62,19 +124,19 @@ namespace GLib.Introspection
 		THROWS
 	}
 
+	public enum VFuncInfoFlags : uint {
+		MUST_CHAIN_UP,
+		MUST_OVERRIDE,
+		MUST_NOT_OVERRIDE,
+		THROWS
+	}
+
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public struct AttributeIter {
 		IntPtr a;
 		IntPtr b;
 		IntPtr c;
 		IntPtr d;
-
-		public AttributeIter () {
-			a = IntPtr.Zero;
-			b = IntPtr.Zero;
-			c = IntPtr.Zero;
-			d = IntPtr.Zero;
-		}
 	}
 
 	internal class Consts {
@@ -148,6 +210,7 @@ namespace GLib.Introspection
 			if (this.disposed)
 				return;
 
+			Console.WriteLine ("DISPOSE");
 			g_base_info_unref (_handle);
 			_handle = IntPtr.Zero;
 		}
@@ -266,7 +329,7 @@ namespace GLib.Introspection
 			var n_args = g_callable_info_get_n_args (_handle);
 
 			for (int i = 0; i < n_args; i++) {
-				args.Add(new ArgInfo (g_callable_info_get_arg (_handle, n_args)));
+				args.Add(new ArgInfo (g_callable_info_get_arg (_handle, i)));
 			}
 
 			return args.ToArray ();
@@ -305,7 +368,7 @@ namespace GLib.Introspection
 		[DllImport(Consts.GISO)]
 		private static extern bool g_function_info_invoke (IntPtr info);
 
-		internal FunctionInfo (IntPtr handle) {
+			internal FunctionInfo (IntPtr handle) {
 			_handle = handle;
 		}
 
@@ -322,10 +385,30 @@ namespace GLib.Introspection
 		}
 	}
 
+	class SignalInfo : CallableInfo {
+		internal SignalInfo (IntPtr handle) {
+			_handle = handle;
+		}
+	}
+
 	class VFuncInfo : CallableInfo {
 		internal VFuncInfo (IntPtr handle) {
 			_handle = handle;
 		}
+		[DllImport(Consts.GISO)]
+		private static extern VFuncInfoFlags g_vfunc_info_get_flags (IntPtr info);
+		[DllImport(Consts.GISO)]
+		private static extern int g_vfunc_info_get_offset (IntPtr info);
+		[DllImport(Consts.GISO)]
+		private static extern IntPtr g_vfunc_info_get_signal (IntPtr info);
+		[DllImport(Consts.GISO)]
+		private static extern IntPtr  g_vfunc_info_get_invoker (IntPtr info);
+		[DllImport(Consts.GISO)]
+		private static extern IntPtr g_vfunc_info_get_address (IntPtr info, uint gtype, IntPtr error);
+
+		public VFuncInfoFlags Flags { get { return g_vfunc_info_get_flags (_handle); } }
+		public int Offset { get { return g_vfunc_info_get_offset (_handle); } }
+		public SignalInfo Signal { get { return new SignalInfo (g_vfunc_info_get_signal (_handle)); } }
 	}
 
 	class ConstantInfo : BaseInfo {
@@ -355,6 +438,47 @@ namespace GLib.Introspection
 	class TypeInfo : BaseInfo {
 		internal TypeInfo (IntPtr handle) {
 			_handle = handle;
+		}
+
+		[DllImport(Consts.GISO)]
+		public static extern IntPtr g_type_tag_to_string (TypeTag tag);
+		[DllImport(Consts.GISO)]
+		public static extern IntPtr g_info_type_to_string (InfoType info);
+		[DllImport(Consts.GISO)]
+		public static extern bool g_type_info_is_pointer (IntPtr info);
+		[DllImport(Consts.GISO)]
+		public static extern TypeTag g_type_info_get_tag (IntPtr info);
+		[DllImport(Consts.GISO)]
+		public static extern IntPtr g_type_info_get_param_type (IntPtr info, int n);
+		[DllImport(Consts.GISO)]
+		public static extern IntPtr g_type_info_get_interface (IntPtr info);
+		[DllImport(Consts.GISO)]
+		public static extern int	g_type_info_get_array_length (IntPtr info);
+		[DllImport(Consts.GISO)]
+		public static extern int	g_type_info_get_array_fixed_size (IntPtr info);
+		[DllImport(Consts.GISO)]
+		public static extern bool g_type_info_is_zero_terminated (IntPtr info);
+		[DllImport(Consts.GISO)]
+		public static extern ArrayType g_type_info_get_array_type (IntPtr info);
+
+		string TagToString (TypeTag tag) {
+			return Marshal.PtrToStringAnsi (g_type_tag_to_string (tag));
+		}
+
+		string InfoTypeToString (InfoType type) {
+			return Marshal.PtrToStringAnsi (g_info_type_to_string (type));
+		}
+
+		public bool IsPointer () {
+			return g_type_info_is_pointer (_handle);
+		}
+
+		public TypeTag GetTag () {
+			return g_type_info_get_tag (_handle);
+		}
+
+		public TypeInfo GetParamType (int n) {
+			return new TypeInfo (g_type_info_get_param_type (_handle, n));
 		}
 	}
 
@@ -464,16 +588,93 @@ namespace GLib.Introspection
 			return mangled;
 		}
 
+		public static void create_methods (GIRepository gir, string ns) {
+			var ab = AppDomain.CurrentDomain.DefineDynamicAssembly (new AssemblyName (ns),
+				AssemblyBuilderAccess.RunAndSave);
+			var mb = ab.DefineDynamicModule (ns, true);
+
+			foreach (var i in gir.GetAllInfos (ns)) {
+				if (i.Type == InfoType.FUNCTION) {
+					bool cont = true;
+					var f = new FunctionInfo(i._handle);
+					Console.WriteLine ("{0} {1} {2}", f.Name, f.GetSymbol (), MangleName (f.Name));
+
+					var rettype = f.GetReturnType ();
+					var rettag = rettype.GetTag ();
+					var fargs = f.GetArgs ();
+
+					if (!TypeMaps.tagmap.ContainsKey (rettag))
+						continue;
+
+					Type managedRettype = rettype.IsPointer () ? typeof(IntPtr) : TypeMaps.tagmap [rettag];
+
+					List<Type> argtypes = new List<Type> ();
+
+					foreach (var a in fargs) {
+						var argtinfo = a.GetTypeInfo ();
+						var tag = argtinfo.GetTag ();
+						if (!TypeMaps.tagmap.ContainsKey (tag)) {
+							cont = false;
+							break;
+						}
+						Type at;
+						if (argtinfo.IsPointer () ||
+							a.GetDirection() == Direction.OUT ||
+							a.GetDirection() == Direction.INOUT)
+							at = typeof(IntPtr);
+						else
+							at = TypeMaps.tagmap [tag];
+						
+						argtypes.Add (at);
+					}
+
+					if (!cont)
+						continue;
+
+					var internalmethod = mb.DefinePInvokeMethod (f.GetSymbol (), gir.GetSharedLibrary (ns),
+						MethodAttributes.Static | MethodAttributes.Public | MethodAttributes.PinvokeImpl,
+						CallingConventions.Any,
+						managedRettype	,
+						argtypes.ToArray (),
+						CallingConvention.Cdecl,
+						CharSet.Ansi);
+					internalmethod.SetImplementationFlags (MethodImplAttributes.PreserveSig | internalmethod.GetMethodImplementationFlags ());
+				}
+			}
+
+			mb.CreateGlobalFunctions ();
+			ab.Save ("assembly.dll");
+		}
+
+		private static bool CheckIsRef (ArgInfo ai) {
+			var ti = ai.GetTypeInfo ();
+
+			if (ti.IsPointer ())
+				return true;
+
+			switch (ai.GetDirection ()) {
+				case Direction.OUT:
+				case Direction.INOUT:
+					return true;
+				default:
+					break;
+			}
+
+			switch (ai.GetTypeInfo ().GetTag ()) {
+				case TypeTag.UTF8: 
+				case TypeTag.FILENAME:
+					return true;
+				default:
+					break;
+			}
+			
+			return false;
+		}
+
 		public static void Main (string[] args) {
 			var gir = new GIRepository ();
 			gir.Require ("Soup");
-
-			foreach (var i in gir.GetAllInfos ("Soup")) {
-				if (i.Type == InfoType.FUNCTION) {
-					var f = new FunctionInfo(i._handle);
-					Console.WriteLine ("{0} {1} {2}", f.Name, f.GetSymbol (), MangleName (f.Name));
-				}
-			}
+			create_methods (gir, "Soup");
 		}
 	}
 }
